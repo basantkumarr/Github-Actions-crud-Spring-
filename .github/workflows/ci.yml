@@ -1,58 +1,148 @@
-name: Spring Boot CI/CD
+   name: Spring Boot CI/CD
 
-on:
-  push:
-    branches:
-      - main
+  on:
+    push:
+      branches:
+        - main
 
-  pull_request:
-    branches:
-      - main
+    pull_request:
+      branches:
+        - main
 
 
-jobs:
-  build-test-deploy:
+  jobs:
 
-    runs-on: self-hosted
+    # =========================
+    # CI - Build and Test
+    # =========================
+    build-test:
 
-    steps:
+      runs-on: self-hosted
 
-      - name: Checkout code
-        uses: actions/checkout@v4
+      steps:
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: maven
+        - name: Checkout code
+          uses: actions/checkout@v4
 
-      - name: Build and Test
-        run: mvn clean test
+        - name: Set up Java
+          uses: actions/setup-java@v4
+          with:
+            java-version: '21'
+            distribution: 'temurin'
+            cache: maven
 
-      - name: Build JAR
-        run: mvn clean package -DskipTests
+        - name: Build and Test
+          run: mvn clean test
 
-      - name: Stop old application
-        run: |
-          if [ -f ~/spring-demo/app.pid ]; then
-            kill $(cat ~/spring-demo/app.pid) || true
-          fi
+        - name: Build JAR
+          run: mvn clean package -DskipTests
 
-      - name: Deploy JAR
-        run: |
-          mkdir -p ~/spring-demo
-          cp target/*.jar ~/spring-demo/app.jar
 
-      - name: Start Spring Boot
-        run: |
-          cd ~/spring-demo
-          nohup java -jar app.jar > app.log 2>&1 &
-          echo $! > app.pid
+    # =========================
+    # CD - Deploy
+    # =========================
+    deploy:
 
-      - name: Wait for application
-        run: sleep 10
+      needs: build-test
 
-      - name: Test deployed application
-        run: |
-          curl --fail http://localhost:8080/api/students/hello
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+      runs-on: self-hosted
+
+      steps:
+
+        - name: Checkout code
+          uses: actions/checkout@v4
+
+        - name: Set up Java
+          uses: actions/setup-java@v4
+          with:
+            java-version: '21'
+            distribution: 'temurin'
+            cache: maven
+
+        - name: Build JAR
+          run: mvn clean package -DskipTests
+
+
+        # =========================
+        # Stop old application
+        # =========================
+        - name: Stop old application
+          run: |
+            if [ -f /home/ubuntu/spring-demo/app.pid ]; then
+              PID=$(cat /home/ubuntu/spring-demo/app.pid)
+            
+              if kill -0 "$PID" 2>/dev/null; then
+                echo "Stopping application with PID: $PID"
+                kill "$PID"
+                sleep 3
+              else
+                echo "Application is not running"
+              fi
+            
+              rm -f /home/ubuntu/spring-demo/app.pid
+            else
+              echo "No previous PID file found"
+            fi
+        
+
+        # =========================
+        # Deploy new JAR
+        # =========================
+        - name: Deploy JAR
+          run: |
+            mkdir -p /home/ubuntu/spring-demo
+            cp target/*.jar /home/ubuntu/spring-demo/app.jar
+            
+            echo "JAR deployed successfully"
+        
+
+        # =========================
+        # Start Spring Boot
+        # =========================
+        - name: Start Spring Boot
+          run: |
+            cd /home/ubuntu/spring-demo
+            
+            nohup java -jar app.jar > app.log 2>&1 &
+            
+            echo $! > app.pid
+            
+            echo "Application started with PID: $(cat app.pid)"
+        
+
+        # =========================
+        # Wait for application
+        # =========================
+        - name: Wait for application
+          run: |
+            echo "Waiting for Spring Boot to start..."
+            sleep 10
+        
+
+        # =========================
+        # Check application process
+        # =========================
+        - name: Check application process
+          run: |
+            PID=$(cat /home/ubuntu/spring-demo/app.pid)
+            
+            if kill -0 "$PID" 2>/dev/null; then
+              echo "Spring Boot application is running"
+            else
+              echo "Spring Boot application failed to start"
+              cat /home/ubuntu/spring-demo/app.log
+              exit 1
+            fi
+        
+
+        # =========================
+        # Test deployed API
+        # =========================
+        - name: Test deployed application
+          run: |
+            curl --fail http://localhost:8080/api/students/hello
+            
+            echo ""
+            echo "Application deployed successfully!"
