@@ -1,5 +1,6 @@
 package com.example.crud.service;
 
+import com.example.crud.annotation.ExecutionTime;
 import com.example.crud.entity.StudenReqDTO;
 import com.example.crud.entity.Student;
 import com.example.crud.entity.StudentRespDTO;
@@ -22,6 +23,9 @@ public class StudentService {
         this.studentRepository = studentRepository;
     }
 
+
+
+    @ExecutionTime
     public StudentRespDTO createStudentServ(StudenReqDTO studentReq) {
 
         Student student = mapToEntity(studentReq);
@@ -32,8 +36,8 @@ public class StudentService {
 
 
 
-    
-    
+
+    @ExecutionTime
     public StudentRespDTO getStudentServ(Long id) {
 
         Student studentResp =
@@ -59,6 +63,7 @@ public class StudentService {
 
 
 
+    @ExecutionTime
 
     public Student UpdateStudentServ(Long id, StudenReqDTO student) {
 
