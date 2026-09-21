@@ -1,11 +1,14 @@
 package com.example.crud.service;
 
+import com.example.crud.entity.StudenReqDTO;
 import com.example.crud.entity.Student;
+import com.example.crud.entity.StudentRespDTO;
+import com.example.crud.exception.ResourceNotFoundException;
 import com.example.crud.repository.StudentRepository;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,53 +22,65 @@ public class StudentService {
         this.studentRepository = studentRepository;
     }
 
-    public Student createStudentServ(Student student) {
-        return studentRepository.save(student);
+    public StudentRespDTO createStudentServ(StudenReqDTO studentReq) {
+
+        Student student = mapToEntity(studentReq);
+        studentRepository.save(student);
+        return maptodata(student);
+
     }
 
-    public Student getStudentServ(Long id) {
 
-        Optional<Student> studentResp =
-                studentRepository.findByIdAndIsDeletedFalse(id);
 
-        if (studentResp.isEmpty()) {
-            return null;
-        }
+    
+    
+    public StudentRespDTO getStudentServ(Long id) {
 
-        return studentResp.get();
+        Student studentResp =
+                studentRepository.findByIdAndIsDeletedFalse(id).orElseThrow(()-> new ResourceNotFoundException("Student with this ID not found"));
+
+             return maptodata(studentResp);
+       
     }
-    public List<Student> getAllStudentServ() {
+    
+    
+    
+    
+    
 
-        return studentRepository.findAllByIsDeletedFalse();
+    
+    public List<StudentRespDTO> getAllStudentServ() {
+
+        List<Student>  ls=  studentRepository.findAllByIsDeletedFalse();
+        return ls.stream()
+                .map(this::maptodata)
+                .toList();
     }
 
-    public Student UpdateStudentServ(Long id , Student student) {
-        Optional<Student> studentResp=studentRepository.findById(id);
 
-        if(studentResp.isEmpty()){
-            return null;
-        }
 
-        Student studentToSave = studentResp.get();
 
-        studentToSave.setName(student.getName());
-        studentToSave.setEmail(student.getEmail());
-        studentToSave.setRollno(student.getRollno());
-        studentToSave.setSubject(student.getSubject());
-        studentToSave.setAge(student.getAge());
-        return studentRepository.save(studentToSave);    }
+    public Student UpdateStudentServ(Long id, StudenReqDTO student) {
+
+        Student s1 = studentRepository.findById(id).orElseThrow(()->new ResourceNotFoundException("ID not found "));
+
+
+
+        s1.setName(student.getName());
+        s1.setAge(student.getAge());
+        s1.setEmail(student.getEmail());
+        s1.setSubject(student.getSubject());
+        s1.setRollno(student.getRollno());
+
+        return studentRepository.save(s1);
+    }
 
 
 
     public Boolean delStudentServ(Long id) {
 
-        Optional<Student> studentResp = studentRepository.findById(id);
+        Student student = studentRepository.findById(id).orElseThrow(()->new ResourceNotFoundException("ID not found to delete"));
 
-        if (studentResp.isEmpty()) {
-            return false;
-        }
-
-        Student student = studentResp.get();
 
         student.setDeleted(true);
 
@@ -73,4 +88,42 @@ public class StudentService {
 
         return true;
     }
+
+
+
+    private Student mapToEntity(StudenReqDTO studentReq) {
+        Student s1= new Student();
+
+        s1.setName(studentReq.getName());
+        s1.setAge(studentReq.getAge());
+        s1.setEmail(studentReq.getEmail());
+        s1.setSubject(studentReq.getSubject());
+        s1.setRollno(studentReq.getRollno());
+        s1.setDeleted(false);
+
+        s1.setCreatedAt(LocalDateTime.now());
+        s1.setUpdatedAt(LocalDateTime.now());
+
+
+        return s1;
+
+
+    }
+
+
+    private StudentRespDTO maptodata(Student student) {
+
+        StudentRespDTO s1= new StudentRespDTO();
+
+        s1.setName(student.getName());
+        s1.setAge(student.getAge());
+        s1.setEmail(student.getEmail());
+        s1.setSubject(student.getSubject());
+        s1.setRollno(student.getRollno());
+        s1.setMessage("Hello you did it ");
+
+        return s1;
+
+    }
+
 }
